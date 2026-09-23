@@ -3,9 +3,11 @@ package edu.ku.book_api.controller;
 import edu.ku.book_api.model.Books;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,7 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @RequestMapping("/api/v1/books")
 public class BookController {
 
-    // Mutable, in-memory list so new books can be added via POST.
+    // Mutable, in-memory list so books can be added, updated, and removed.
     private final List<Books> books = new ArrayList<>(List.of(
             new Books(1L, "Clean Code", "Robert C. Martin",
                     "9780132350884", 2008, "Software Engineering"),
@@ -58,5 +60,38 @@ public class BookController {
         newBook.setId(nextId.getAndIncrement());
         books.add(newBook);
         return ResponseEntity.status(HttpStatus.CREATED).body(newBook);
+    }
+
+    // PUT /api/v1/books/{id} - replaces an existing book's fields (id stays the same).
+    @PutMapping("/{id}")
+    public ResponseEntity<Books> updateBook(@PathVariable Long id, @RequestBody Books input) {
+        Optional<Books> match = books.stream()
+                .filter(book -> book.getId().equals(id))
+                .findFirst();
+
+        if (match.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Books existing = match.get();
+        existing.setTitle(input.getTitle());
+        existing.setAuthor(input.getAuthor());
+        existing.setIsbn(input.getIsbn());
+        existing.setPublishedYear(input.getPublishedYear());
+        existing.setCategory(input.getCategory());
+        // id is intentionally left untouched.
+
+        return ResponseEntity.ok(existing);
+    }
+
+    // DELETE /api/v1/books/{id} - removes an existing book.
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteBook(@PathVariable Long id) {
+        boolean removed = books.removeIf(book -> book.getId().equals(id));
+
+        if (removed) {
+            return ResponseEntity.noContent().build(); // 204
+        }
+        return ResponseEntity.notFound().build(); // 404
     }
 }
